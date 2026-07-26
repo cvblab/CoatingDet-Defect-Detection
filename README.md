@@ -6,8 +6,7 @@ in production, annotated with
 bounding boxes in YOLO format.
 
 * **Dataset (Zenodo):** https://doi.org/10.5281/zenodo.21600391
-  (v2, the release described in the paper; https://doi.org/10.5281/zenodo.15166404
-  always resolves to the latest version)
+
 * **Paper:** *High-Resolution Images for Coating Defect Detection in Wind Turbine
   Structures*, Scientific Data (under review)
 
@@ -26,7 +25,9 @@ The finer-grained subtype is retained **at image level** in the `label` field of
 `metadata.csv`, not per box. The reason for merging the four critical types is
 instance scarcity: of the 768 released `defect` boxes, 621 are inclusions, 84
 scratches, 44 contaminants and 19 pinholes — and in the training split alone the
-counts are 439 / 27 / 1 / 19. 
+counts are 439 / 27 / 1 / 19. Three of the four subtypes cannot support
+fine-grained training or evaluation, and all four trigger the same repair action,
+so the operationally meaningful decision is `defect` vs `particle`.
 
 ## Dataset layout
 
@@ -46,20 +47,12 @@ datasets/
     └── raw_data/{images,labels}/    3,775 images   High-Cold
 ```
 
-`metadata.csv` is semicolon-separated with columns
-`path; filename; code; focal; label; balance; contrast; set`.
-
-Subset names combine the two illumination fields: **Low-Warm** = `contrast=Low`
-+ `balance=Warm`, and so on. Both fields are session-level attributes, assigned
-from the illumination configuration in use during each acquisition campaign;
-`docs/DATA_RECORD.md` reports how well they are recovered from photometric
-measurements of the images.
-
-Those measurements are released here as `data/illumination_stats_v2.csv`: one row
-per image for all 5,416 images, with per-channel means, the R/B ratio, mean and
-standard deviation of luminance, RMS contrast and the P95−P5 luminance spread,
-alongside the metadata fields. Filenames and labels match the deposited archive
-exactly. Regenerate it with `python -m coatingdet.illumination_stats`.
+Note that `metadata.csv` is **semicolon**-separated. Subset names combine the two
+session-level illumination fields: **Low-Warm** = `contrast=Low` + `balance=Warm`,
+and so on. `docs/DATA_RECORD.md` documents every field, and
+`data/illumination_stats_v2.csv` gives the per-image photometry behind the
+`balance` / `contrast` labels (regenerate with
+`python -m coatingdet.illumination_stats`).
 
 ## Annotation quality
 
@@ -76,17 +69,9 @@ Disagreement concentrates in the warm-balance sessions (22.2 % versus 7.9 % unde
 cold balance) — the same illumination axis that degrades detector performance on
 Test 1, consistent with colour being a principal cue separating the two classes.
 
-The completed sheet and result are released here so the figure is checkable:
-
-| file | contents |
-|---|---|
-| `data/consistency_review_sheet.csv` | one row per box: original class, reviewer's class, confirmation flag |
-| `data/consistency_result.json` | the computed agreement statistics |
-| `data/consistency_sampling.json` | sample size and random seed, so the draw can be reproduced |
-
-Reproduce or extend the study with `python -m coatingdet.consistency_sample
-sample --root <dataset> --n-images 150 --seed 20260101 --out review_package`,
-then `... score --package review_package`.
+The completed review sheet, the computed statistics and the sampling seed are
+released as `data/consistency_*` so the figure is checkable, and
+`coatingdet.consistency_sample` reproduces or extends the study.
 
 ## Installation
 
@@ -100,7 +85,9 @@ export PYTHONPATH="$PWD/src:$PYTHONPATH"
 
 Then download the dataset from Zenodo and unpack it into `./datasets/`.
 
-> **Version pin.** `requirements.txt` pins `ultralytics==8.3.100`. 
+> **Version pin.** `requirements.txt` pins `ultralytics==8.3.100`. RT-DETR
+> post-processing changed in the 8.4 series and the published metrics are not
+> reproducible across that boundary — do not upgrade it.
 
 ## Quick start
 
@@ -108,27 +95,9 @@ Then download the dataset from Zenodo and unpack it into `./datasets/`.
 bash scripts/reproduce_all.sh          # everything, end to end (~1 h on one GPU)
 ```
 
-Or step by step:
-
-```bash
-# 1. tiles — 512 px, non-overlapping, the published filter settings
-python -m coatingdet.tile_creator --root datasets --subset train \
-       --val-prefix "Image__2024-05-27"
-python -m coatingdet.tile_creator --root datasets --subset test_1
-
-# 2. dataset composition table
-python -m coatingdet.dataset_stats --root datasets
-
-# 3. train
-python -m coatingdet.train --model yolo11n  --epochs 20 --data configs/data_val.yaml
-python -m coatingdet.train --model rtdetr-l --epochs 20 --data configs/data_val.yaml
-
-# 4. evaluate, with per-class metrics and LaTeX output
-python -m coatingdet.evaluate \
-  --model "YOLOv11n=runs/yolo11n_20ep/weights/best.pt" \
-  --model "RT-DETR=runs/rtdetr-l_20ep/weights/best.pt" \
-  --subsets configs/data_val.yaml configs/data_test{1,2,3}.yaml
-```
+That script runs tiling, the composition table, the audit, training and
+evaluation in order — read it to run the steps selectively. Every module also has
+`--help`.
 
 ## Modules
 
@@ -162,23 +131,19 @@ not meaningful at that threshold.
 `docs/REPRODUCE.md` documents two defects in the originally submitted results
 table — swapped model columns and a checkpoint from a diverged training run —
 and the controls used to diagnose the Test-1 anomaly.
-`docs/DATA_RECORD.md` documents every metadata field, how the session-level
-`balance` and `contrast` labels are recovered from the pixels, and the per-subtype
+`docs/DATA_RECORD.md` documents every metadata field and the per-subtype
 distribution of the defect boxes.
 
-## Using the dataset across illumination conditions
+## Mixing acquisition sessions
 
-Test 1 is the only warm-balanced subset. Models trained on the cold-balanced
-majority lose a large amount of recall on it, and a grey-world correction
-recovers most of that loss:
+Test 1 is the only warm-balanced subset, and models trained on the cold-balanced
+majority lose a large amount of recall on it. Apply a grey-world correction, or
+widen the hue augmentation range, when combining sessions:
 
 ```python
 from coatingdet.whitebalance import grey_world
 img = grey_world(cv2.imread(path))
 ```
-
-Quantified in `docs/REPRODUCE.md`. Users who mix acquisition sessions should
-either apply this correction or add colour-jitter augmentation during training.
 
 ## Citation
 
@@ -200,6 +165,11 @@ either apply this correction or add colour-jitter augmentation during training.
 ## Licence
 
 Code: MIT (see `LICENSE`). Dataset: CC BY 4.0, distributed via Zenodo.
+
+## Funding
+
+Horizon Europe grant 101057404 (ZDZW); PID2022-140189OB-C21 funded by
+MICIU/AEI/10.13039/501100011033, ERDF/EU and FSE+; CIPROM/2022/20 (PROMETEO).
 
 ## Funding
 
