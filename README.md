@@ -171,9 +171,3 @@ Code: MIT (see `LICENSE`). Dataset: CC BY 4.0, distributed via Zenodo.
 Horizon Europe grant 101057404 (ZDZW); PID2022-140189OB-C21 funded by
 MICIU/AEI/10.13039/501100011033, ERDF/EU and FSE+; CIPROM/2022/20 (PROMETEO).
 
-## Funding
-
-Horizon Europe grant 101057404 (ZDZW); PID2022-140189OB-C21 funded by
-MICIU/AEI/10.13039/501100011033, ERDF/EU and FSE+; CIPROM/2022/20 (PROMETEO,
-Generalitat Valenciana).
-
