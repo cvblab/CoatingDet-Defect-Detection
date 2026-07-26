@@ -1,0 +1,8 @@
+# Training on the tiled training split; validation on the Low-Cold session
+# (27 May 2024), which is the split used to monitor convergence and to select
+# the best-epoch checkpoint.
+path: ../datasets
+train: train/tiles/train/images
+val: train/tiles/val/images
+nc: 2
+names: ['defect', 'particle']

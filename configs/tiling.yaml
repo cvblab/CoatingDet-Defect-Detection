@@ -1,0 +1,8 @@
+# Parameters used to generate the tiled datasets reported in the manuscript.
+# Passed to coatingdet.tile_creator; kept here for the record.
+tile_size: 512            # px
+overlap: 0.0              # non-overlapping
+min_bbox_fraction: 0.35   # >=35 % of the original box area must fall in the tile
+min_tile_fraction: 0.01   # the retained box must cover >=1 % of the tile
+keep_empty: false         # tiles without any surviving box are discarded
+val_prefix: "Image__2024-05-27"   # routes the Low-Cold session to the val split

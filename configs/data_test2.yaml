@@ -1,0 +1,7 @@
+# Evaluation config: the `val:` key points at Test 2 so that `model.val()`
+# reports metrics for that held-out acquisition session.
+path: ../datasets
+train: train/tiles/train/images
+val: test_2/tiles/images
+nc: 2
+names: ['defect', 'particle']
