@@ -1,8 +1,0 @@
-{
-  "seed": 20260101,
-  "n_images_requested": 150,
-  "n_images_drawn": 150,
-  "n_boxes": 250,
-  "root": "CoatingDet_v2",
-  "stratified_by": "acquisition subset"
-}
